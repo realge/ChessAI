@@ -6,19 +6,6 @@ import os
 
 # Neural Network Model
 
-class ChessGame:
-    def __init__(self):
-        self.board = init_board()
-        self.turn = 0
-        self.winner = None
-        self.move_history = []
-
-    def make_move(self, move):
-        make_move(self.board, move)
-        self.move_history.append((get_current_player(self.turn), move))
-        self.turn += 1
-        self.winner = check_win_condition(self.board)
-
 def create_model():
     model = keras.Sequential([
         keras.layers.Conv2D(64, (3, 3), activation='relu', input_shape=(8, 8, 13)),
@@ -483,7 +470,7 @@ def ai_game_loop(screen, clock, model):
     turn = 0
     winner = None
     move_history = []
-    reset_button_rect = None
+    reset_delay = 180  # 3 seconds at 60 FPS
 
     while running:
         current_player = get_current_player(turn)
@@ -491,12 +478,6 @@ def ai_game_loop(screen, clock, model):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN and winner:
-                if reset_button_rect and reset_button_rect.collidepoint(event.pos):
-                    board = init_board()
-                    turn = 0
-                    winner = None
-                    move_history = []
 
         if not winner:
             ai_move = ai_choose_move(model, board, current_player)
@@ -521,14 +502,26 @@ def ai_game_loop(screen, clock, model):
             turn_text = f"{current_player.upper()}'s turn"
             FONT.render_to(screen, (10, HEIGHT - 30), turn_text, BLACK)
         else:
-            reset_button_rect = draw_victory_screen(screen, winner)
+            victory_text = f"{'White' if winner == 'w' else 'Black'} wins! Resetting in {reset_delay // 60} seconds..."
+            text_rect = FONT.get_rect(victory_text, size=36)
+            text_rect.center = (WIDTH // 2, HEIGHT // 2)
+            FONT.render_to(screen, text_rect, victory_text, WHITE, size=36)
+            
+            reset_delay -= 1
+            if reset_delay <= 0:
+                board = init_board()
+                turn = 0
+                winner = None
+                move_history = []
+                reset_delay = 180  # Reset the delay for the next game
         
         display_move_history(screen, move_history)
         
         pygame.display.flip()
-        clock.tick(60)  # Slow down the game to 1 frame per second
+        clock.tick(60)
 
     return model  # Return the model so it can be saved in the main function
+
 
 
 def display_move_history(screen, move_history):
